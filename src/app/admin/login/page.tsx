@@ -97,9 +97,6 @@ export default function AdminLogin() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-400">
-          Identifiants par défaut : admin@dailymieux.fr / admin123
-        </p>
       </div>
     </div>
   );
