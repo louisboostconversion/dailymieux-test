@@ -8,7 +8,9 @@ import {
   FileText,
   FolderOpen,
   Image as ImageIcon,
+  Mail,
   MessageSquare,
+  Calendar,
   LogOut,
   Menu,
   X,
@@ -19,14 +21,17 @@ interface User {
   name: string;
   email: string;
   role: string;
+  brandId: string | null;
 }
 
-const navItems = [
+const adminNavItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/demandes", label: "Demandes", icon: MessageSquare },
   { href: "/admin/articles", label: "Articles", icon: FileText },
-  { href: "/admin/categories", label: "Catégories", icon: FolderOpen },
-  { href: "/admin/media", label: "Médias", icon: ImageIcon },
+  { href: "/admin/categories", label: "Marques", icon: FolderOpen },
+  { href: "/admin/media", label: "Medias", icon: ImageIcon },
+  { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
+  { href: "/admin/requests", label: "Demandes", icon: MessageSquare },
+  { href: "/admin/editorial", label: "Calendrier", icon: Calendar },
 ];
 
 export default function AdminLayout({
@@ -51,7 +56,26 @@ export default function AdminLayout({
         if (!res.ok) throw new Error("Not authenticated");
         return res.json();
       })
-      .then((data) => setUser(data.user))
+      .then((data) => {
+        setUser(data.user);
+        // Redirect client users to their brand dashboard
+        if (data.user.role === "client" && data.user.brandId) {
+          const brandDashPath = `/admin/categories/${data.user.brandId}/dashboard`;
+          const allowedClientPaths = [
+            brandDashPath,
+            "/admin/articles",
+            "/admin/requests",
+          ];
+          const isAllowed = allowedClientPaths.some((p) => pathname.startsWith(p));
+          if (!isAllowed && pathname !== "/admin/login") {
+            router.replace(brandDashPath);
+          }
+          // Block access to other brands' dashboards
+          if (pathname.startsWith("/admin/categories/") && pathname.includes("/dashboard") && !pathname.includes(data.user.brandId)) {
+            router.replace(brandDashPath);
+          }
+        }
+      })
       .catch(() => router.push("/admin/login"))
       .finally(() => setLoading(false));
   }, [pathname, router]);
@@ -74,6 +98,15 @@ export default function AdminLayout({
   }
 
   if (!user) return null;
+
+  const isClient = user.role === "client" && user.brandId;
+  const navItems = isClient
+    ? [
+        { href: `/admin/categories/${user.brandId}/dashboard`, label: "Dashboard", icon: LayoutDashboard },
+        { href: "/admin/articles", label: "Articles", icon: FileText },
+        { href: "/admin/requests", label: "Demandes", icon: MessageSquare },
+      ]
+    : adminNavItems;
 
   return (
     <div className="flex min-h-screen bg-gray-50">

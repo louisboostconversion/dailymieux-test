@@ -1,24 +1,38 @@
 import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { slugify } from "@/lib/utils";
+import { requireAuth, isAuthError } from "@/lib/auth";
+import { validateArticleCreate } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status");
   const type = searchParams.get("type");
   const categoryId = searchParams.get("categoryId");
   const search = searchParams.get("search");
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20");
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1") || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20") || 20));
+
+  // Check if the requester is an authenticated admin
+  const auth = await requireAuth(request);
+  const isAdmin = !isAuthError(auth);
 
   const where: Record<string, unknown> = {};
-  if (status) where.status = status;
+
+  if (isAdmin) {
+    // Admins can filter by any status
+    const status = searchParams.get("status");
+    if (status) where.status = status;
+  } else {
+    // Public visitors only see published articles
+    where.status = "published";
+  }
+
   if (type) where.type = type;
   if (categoryId) where.categoryId = categoryId;
   if (search) {
     where.OR = [
-      { title: { contains: search } },
-      { excerpt: { contains: search } },
+      { title: { contains: search, mode: "insensitive" } },
+      { excerpt: { contains: search, mode: "insensitive" } },
     ];
   }
 
@@ -48,7 +62,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request);
+  if (isAuthError(auth)) return auth;
+
   const body = await request.json();
+  const validationError = validateArticleCreate(body);
+  if (validationError) return validationError;
+
   const {
     title,
     excerpt,
@@ -69,34 +89,46 @@ export async function POST(request: NextRequest) {
     ctaUrl,
   } = body;
 
-  if (!title || !excerpt || !content || !categoryId || !authorId) {
-    return NextResponse.json(
-      { error: "Title, excerpt, content, categoryId, and authorId are required" },
-      { status: 400 }
-    );
-  }
-
   const slug = slugify(title);
 
   // Check for duplicate slug
   const existing = await prisma.article.findUnique({ where: { slug } });
   const finalSlug = existing ? `${slug}-${Date.now()}` : slug;
 
+  // Auto-calculate read time
+  const contentStr = typeof content === "string" ? content : JSON.stringify(content);
+  const wordCount = contentStr.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length;
+  const readTime = Math.max(1, Math.round(wordCount / 200));
+
   const article = await prisma.article.create({
     data: {
       title,
       slug: finalSlug,
       excerpt,
-      content: typeof content === "string" ? content : JSON.stringify(content),
+      content: contentStr,
       type: type || "guide",
+      topic: body.topic || "lifestyle",
       status: status || "draft",
       coverImage,
       categoryId,
       authorId,
+      readTime,
       seoTitle,
       seoDesc,
       ogImage,
       featured: featured || false,
+      affiliateUrl: body.affiliateUrl || null,
+      outUtmSource: body.outUtmSource || "dailymieux",
+      outUtmMedium: body.outUtmMedium || "article",
+      outUtmCampaign: body.outUtmCampaign || finalSlug,
+      productPrice: body.productPrice ? parseFloat(body.productPrice) : null,
+      commissionRate: body.commissionRate ? parseFloat(body.commissionRate) : null,
+      metaPixelId: body.metaPixelId || null,
+      metaEvent: body.metaEvent || null,
+      tiktokPixelId: body.tiktokPixelId || null,
+      tiktokEvent: body.tiktokEvent || null,
+      gaId: body.gaId || null,
+      campaignTags: body.campaignTags || null,
       sponsorName,
       sponsorLogo,
       sponsorUrl,

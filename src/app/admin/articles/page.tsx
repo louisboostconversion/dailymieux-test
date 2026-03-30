@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Trash2, Edit, ExternalLink } from "lucide-react";
+import { Plus, Search, Trash2, Edit, ExternalLink, MessageSquare } from "lucide-react";
 import { articleTypeLabels, articleTypeColors } from "@/lib/utils";
 
 interface Article {
@@ -10,12 +10,21 @@ interface Article {
   title: string;
   slug: string;
   type: string;
+  topic: string;
   status: string;
   category: { name: string; slug: string; color: string | null };
   author: { name: string };
   views: number;
   createdAt: string;
   publishedAt: string | null;
+  affiliateUrl: string | null;
+  ctaUrl: string | null;
+}
+
+interface User {
+  id: string;
+  role: string;
+  brandId: string | null;
 }
 
 export default function AdminArticles() {
@@ -24,21 +33,34 @@ export default function AdminArticles() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => setUser(d.user))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchArticles();
-  }, [search, filterType, filterStatus]);
+  }, [search, filterType, filterStatus, user]);
 
   async function fetchArticles() {
     setLoading(true);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ limit: "100" });
     if (search) params.set("search", search);
     if (filterType) params.set("type", filterType);
     if (filterStatus) params.set("status", filterStatus);
+    // Client: filter by their brand
+    if (user?.role === "client" && user.brandId) {
+      params.set("categoryId", user.brandId);
+    }
 
     const res = await fetch(`/api/articles?${params}`);
     const data = await res.json();
-    setArticles(data.articles);
+    setArticles(data.articles || []);
     setLoading(false);
   }
 
@@ -48,18 +70,25 @@ export default function AdminArticles() {
     fetchArticles();
   }
 
+
+  const isClient = user?.role === "client";
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
-        <Link
-          href="/admin/articles/new"
-          className="flex items-center gap-2 rounded-lg bg-[#2D5A3D] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#234a31]"
-        >
-          <Plus className="h-4 w-4" />
-          Nouvel article
-        </Link>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isClient ? "Vos articles" : "Articles"}
+        </h1>
+        {!isClient && (
+          <Link
+            href="/admin/articles/new"
+            className="flex items-center gap-2 rounded-lg bg-[#2D5A3D] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#234a31]"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvel article
+          </Link>
+        )}
       </div>
 
       {/* Filters */}
@@ -103,16 +132,15 @@ export default function AdminArticles() {
           <thead className="border-b bg-gray-50">
             <tr>
               <th className="px-6 py-3 font-medium text-gray-500">Titre</th>
-              <th className="hidden px-6 py-3 font-medium text-gray-500 md:table-cell">
-                Type
-              </th>
-              <th className="hidden px-6 py-3 font-medium text-gray-500 sm:table-cell">
-                Catégorie
-              </th>
+              <th className="hidden px-6 py-3 font-medium text-gray-500 md:table-cell">Type</th>
+              {!isClient && (
+                <th className="hidden px-6 py-3 font-medium text-gray-500 sm:table-cell">Marque</th>
+              )}
+              {isClient && (
+                <th className="hidden px-6 py-3 font-medium text-gray-500 md:table-cell">URL de redirection</th>
+              )}
               <th className="px-6 py-3 font-medium text-gray-500">Statut</th>
-              <th className="hidden px-6 py-3 font-medium text-gray-500 lg:table-cell">
-                Vues
-              </th>
+              <th className="hidden px-6 py-3 font-medium text-gray-500 lg:table-cell">Vues</th>
               <th className="px-6 py-3 font-medium text-gray-500">Actions</th>
             </tr>
           </thead>
@@ -133,9 +161,7 @@ export default function AdminArticles() {
               articles.map((article) => (
                 <tr key={article.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
-                    <p className="font-medium text-gray-900 line-clamp-1">
-                      {article.title}
-                    </p>
+                    <p className="font-medium text-gray-900 line-clamp-1">{article.title}</p>
                     <p className="mt-0.5 text-xs text-gray-400">
                       {new Date(article.createdAt).toLocaleDateString("fr-FR")}
                     </p>
@@ -149,9 +175,28 @@ export default function AdminArticles() {
                       {articleTypeLabels[article.type] || article.type}
                     </span>
                   </td>
-                  <td className="hidden px-6 py-4 sm:table-cell">
-                    <span className="text-gray-600">{article.category.name}</span>
-                  </td>
+                  {!isClient && (
+                    <td className="hidden px-6 py-4 sm:table-cell">
+                      <span className="text-gray-600">{article.category.name}</span>
+                    </td>
+                  )}
+                  {isClient && (
+                    <td className="hidden max-w-[250px] px-6 py-4 md:table-cell">
+                      {(article.affiliateUrl || article.ctaUrl) ? (
+                        <a
+                          href={article.affiliateUrl || article.ctaUrl || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate text-xs text-blue-600 underline hover:text-blue-800"
+                          title={article.affiliateUrl || article.ctaUrl || ""}
+                        >
+                          {article.affiliateUrl || article.ctaUrl}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-4">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -168,28 +213,51 @@ export default function AdminArticles() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <Link
-                        href={`/admin/articles/${article.id}/edit`}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                        title="Éditer"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Link>
-                      <Link
-                        href={`/${article.category.slug}/${article.slug}`}
-                        target="_blank"
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                        title="Voir"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(article.id, article.title)}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {isClient ? (
+                        <>
+                          <Link
+                            href={`/admin/articles/${article.id}/view`}
+                            className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+                            title="Voir et annoter l'article"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            Voir / Annoter
+                          </Link>
+                          <Link
+                            href={`/${article.topic || "lifestyle"}/${article.slug}`}
+                            target="_blank"
+                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            title="Voir sur le site"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href={`/admin/articles/${article.id}/edit`}
+                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            title="Editer"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                          <Link
+                            href={`/${article.topic || "lifestyle"}/${article.slug}`}
+                            target="_blank"
+                            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            title="Voir"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(article.id, article.title)}
+                            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -198,6 +266,7 @@ export default function AdminArticles() {
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }

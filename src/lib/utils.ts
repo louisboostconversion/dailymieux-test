@@ -41,3 +41,31 @@ export const articleTypeColors: Record<string, string> = {
   review: "bg-green-100 text-green-800",
   guide: "bg-rose-100 text-rose-800",
 };
+
+export const TOPICS: Record<string, { name: string; color: string }> = {
+  regime: { name: "Régime", color: "#22c55e" },
+  alimentation: { name: "Alimentation", color: "#f97316" },
+  sante: { name: "Santé", color: "#10b981" },
+  maison: { name: "Maison", color: "#8b5cf6" },
+  conso: { name: "Consommation", color: "#3b82f6" },
+  lifestyle: { name: "Lifestyle", color: "#6b7280" },
+};
+
+export function getTopicDisplay(topic?: string | null): { name: string; color: string } {
+  if (topic && TOPICS[topic]) return TOPICS[topic];
+  return { name: topic || "Article", color: "#416CC2" };
+}
+
+export function safeParseJSON<T = Record<string, unknown>>(
+  raw: string,
+  fallback: T = {} as T
+): T {
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return fallback;
+    return parsed as T;
+  } catch {
+    console.error("Failed to parse article content as JSON");
+    return fallback;
+  }
+}

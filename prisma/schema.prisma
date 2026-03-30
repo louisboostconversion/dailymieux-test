@@ -27,38 +27,66 @@ model Article {
   excerpt     String
   content     String
   type        String    @default("guide")
+  topic       String    @default("lifestyle")
   status      String    @default("draft")
   coverImage  String?
   categoryId  String
   category    Category  @relation(fields: [categoryId], references: [id])
   authorId    String
   author      Author    @relation(fields: [authorId], references: [id])
+  featured    Boolean   @default(false)
+  views       Int       @default(0)
+  readTime    Int?
+
+  // Affiliation & Liens
+  affiliateUrl    String?
+  ctaLabel        String?
+  ctaUrl          String?
+  outUtmSource    String?
+  outUtmMedium    String?
+  outUtmCampaign  String?
+
+  // Monetisation
+  productPrice    Float?
+  commissionRate  Float?
+
+  // Tracking & Pixels
+  metaPixelId     String?
+  metaEvent       String?
+  tiktokPixelId   String?
+  tiktokEvent     String?
+  gaId            String?
+
+  // Campagne & Sponsor
+  campaignTags    String?
+  sponsorName     String?
+  sponsorLogo     String?
+  sponsorUrl      String?
+
+  // SEO
   seoTitle    String?
   seoDesc     String?
   ogImage     String?
-  readTime    Int?
-  featured    Boolean   @default(false)
-  views       Int       @default(0)
-  sponsorName String?
-  sponsorLogo String?
-  sponsorUrl  String?
-  ctaLabel    String?
-  ctaUrl      String?
+
+  modificationRequests ModificationRequest[]
+
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
 model Author {
-  id        String    @id @default(cuid())
-  name      String
-  email     String    @unique
-  avatar    String?
-  bio       String?
-  password  String
-  role      String    @default("editor")
-  articles  Article[]
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  avatar     String?
+  bio        String?
+  password   String
+  role       String    @default("editor")
+  brandId    String?
+  articles              Article[]
+  modificationRequests  ModificationRequest[]
+  createdAt             DateTime  @default(now())
 }
 
 model Media {
@@ -71,13 +99,92 @@ model Media {
   createdAt DateTime @default(now())
 }
 
-model Request {
+model NewsletterSubscriber {
   id        String   @id @default(cuid())
-  firstName String
-  lastName  String
-  email     String
-  message   String
-  status    String   @default("pending")
+  email     String   @unique
+  source    String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+}
+
+model PageView {
+  id          String   @id @default(cuid())
+  sessionId   String
+  articleId   String?
+  path        String
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  device      String?
+  browser     String?
+  os          String?
+  country     String?
+  loadTime    Int?
+  lcp         Int?
+  fid         Int?
+  cls         Float?
+  ttfb        Int?
+  inp         Int?
+  timeOnPage  Int?
+  scrollDepth Int?
+  bounced     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([articleId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@index([utmSource])
+  @@index([utmCampaign])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  articleId String?
+  type      String
+  label     String?
+  value     String?
+  path      String
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PlannedArticle {
+  id            String   @id @default(cuid())
+  title         String
+  topic         String
+  angle         String   // The editorial angle / hook
+  keywords      String   // Comma-separated SEO keywords
+  outline       String   // Brief section outline
+  status        String   @default("planned") // planned, approved, generating, published, rejected
+  scheduledFor  DateTime // When it should be published
+  articleId     String?  // Link to actual Article once generated
+  rejectedReason String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+model ModificationRequest {
+  id          String   @id @default(cuid())
+  articleId   String
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      Author   @relation(fields: [authorId], references: [id])
+  status      String   @default("pending") // pending, approved, rejected, done
+  message     String
+  adminReply  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([authorId])
+  @@index([status])
 }

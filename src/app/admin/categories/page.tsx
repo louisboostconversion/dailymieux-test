@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, BarChart3 } from "lucide-react";
+import Link from "next/link";
 
 interface Category {
   id: string;
@@ -57,7 +58,7 @@ export default function AdminCategories() {
       alert(`Impossible de supprimer "${name}" car elle contient ${articleCount} article(s).`);
       return;
     }
-    if (!confirm(`Supprimer la catégorie "${name}" ?`)) return;
+    if (!confirm(`Supprimer la marque "${name}" ?`)) return;
     await fetch(`/api/categories/${id}`, { method: "DELETE" });
     fetchCategories();
   }
@@ -65,19 +66,19 @@ export default function AdminCategories() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Catégories</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Marques</h1>
         <button
           onClick={() => setShowNew(!showNew)}
           className="flex items-center gap-2 rounded-lg bg-[#2D5A3D] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#234a31]"
         >
           <Plus className="h-4 w-4" />
-          Nouvelle catégorie
+          Nouvelle marque
         </button>
       </div>
 
       {showNew && (
         <div className="rounded-xl bg-white p-6 shadow-sm">
-          <h3 className="mb-4 font-semibold text-gray-900">Nouvelle catégorie</h3>
+          <h3 className="mb-4 font-semibold text-gray-900">Nouvelle marque</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <input
               type="text"
@@ -129,24 +130,35 @@ export default function AdminCategories() {
           <div className="divide-y">
             {categories.map((cat) => (
               <div key={cat.id} className="flex items-center justify-between px-6 py-4">
-                <div className="flex items-center gap-4">
+                <Link
+                  href={`/admin/categories/${cat.id}/dashboard`}
+                  className="flex items-center gap-4 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+                >
                   <div
-                    className="flex h-10 w-10 items-center justify-center rounded-lg text-xl"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
                     style={{ backgroundColor: (cat.color || "#2D5A3D") + "20" }}
                   >
                     {cat.icon || "📁"}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-gray-900">{cat.name}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="truncate text-sm text-gray-500">
                       {cat.description || "Pas de description"} · {cat._count.articles} article(s)
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
+                </Link>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Link
+                    href={`/admin/categories/${cat.id}/dashboard`}
+                    className="rounded-lg p-1.5 text-gray-400 hover:bg-[#2D5A3D]/10 hover:text-[#2D5A3D]"
+                    title="Dashboard"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                  </Link>
                   <input
                     type="text"
                     defaultValue={cat.description || ""}
+                    onClick={(e) => e.stopPropagation()}
                     onBlur={(e) => {
                       if (e.target.value !== (cat.description || "")) {
                         handleUpdate(cat.id, { description: e.target.value });

@@ -1,17 +1,34 @@
 import { PrismaClient } from "@prisma/client";
-import { hashSync } from "bcryptjs";
+import { hashSync, genSaltSync } from "bcryptjs";
+import { randomBytes } from "crypto";
 
 const prisma = new PrismaClient();
 
+function getPasswordFromEnv(envKey: string, fallbackUser: string): string {
+  const password = process.env[envKey];
+  if (password) return password;
+
+  // In dev, generate a random password and display it
+  const generated = randomBytes(16).toString("base64url");
+  console.warn(
+    `⚠️  ${envKey} not set — generated password for ${fallbackUser}: ${generated}`
+  );
+  return generated;
+}
+
 async function main() {
+  const adminPassword = getPasswordFromEnv("SEED_ADMIN_PASSWORD", "admin@dailymieux.fr");
+  const elisePassword = getPasswordFromEnv("SEED_EDITOR_ELISE_PASSWORD", "elise@dailymieux.fr");
+  const marcPassword = getPasswordFromEnv("SEED_EDITOR_MARC_PASSWORD", "marc@dailymieux.fr");
+
   // Create authors
   const admin = await prisma.author.upsert({
     where: { email: "admin@dailymieux.fr" },
-    update: {},
+    update: { password: hashSync(adminPassword, 10) },
     create: {
       name: "Rédaction Daily Mieux",
       email: "admin@dailymieux.fr",
-      password: hashSync("admin123", 10),
+      password: hashSync(adminPassword, 10),
       role: "admin",
       bio: "L'équipe de rédaction Daily Mieux, des experts passionnés par la consommation responsable.",
     },
@@ -19,11 +36,11 @@ async function main() {
 
   const elise = await prisma.author.upsert({
     where: { email: "elise@dailymieux.fr" },
-    update: {},
+    update: { password: hashSync(elisePassword, 10) },
     create: {
       name: "Élise Montclar",
       email: "elise@dailymieux.fr",
-      password: hashSync("elise123", 10),
+      password: hashSync(elisePassword, 10),
       role: "editor",
       bio: "Journaliste spécialisée en consommation responsable et bien-être au quotidien.",
     },
@@ -31,25 +48,34 @@ async function main() {
 
   const marc = await prisma.author.upsert({
     where: { email: "marc@dailymieux.fr" },
-    update: {},
+    update: { password: hashSync(marcPassword, 10) },
     create: {
       name: "Marc Delvern",
       email: "marc@dailymieux.fr",
-      password: hashSync("marc123", 10),
+      password: hashSync(marcPassword, 10),
       role: "editor",
       bio: "Rédacteur passionné par la psychologie de la consommation et le bien-être familial.",
     },
   });
 
-  // Create categories
+  // Create client accounts (one per brand - brandId will be set after categories)
+  const clientsToCreate = [
+    { name: "Spring Team", email: "spring@dailymieux.fr", brand: "spring" },
+    { name: "Cheef Team", email: "cheef@dailymieux.fr", brand: "cheef" },
+  ];
+
+  // Create brand categories
   const categories = [
-    { name: "Régime", slug: "regime", description: "Guides et conseils pour une alimentation équilibrée", icon: "🥗", color: "#22c55e", order: 0 },
-    { name: "Consommation", slug: "consommation", description: "Décryptage des tendances de consommation", icon: "🛒", color: "#3b82f6", order: 1 },
-    { name: "Alimentation", slug: "alimentation", description: "Tout savoir sur ce que vous mangez", icon: "🍎", color: "#f97316", order: 2 },
-    { name: "Santé", slug: "sante", description: "Bien-être et santé au quotidien", icon: "💚", color: "#10b981", order: 3 },
-    { name: "Maison", slug: "maison", description: "Conseils pour un intérieur sain et éco-responsable", icon: "🏠", color: "#8b5cf6", order: 4 },
-    { name: "Beauté", slug: "beaute", description: "Cosmétiques, soins et routines beauté décryptés", icon: "✨", color: "#ec4899", order: 5 },
-    { name: "Enfant", slug: "enfant", description: "Le meilleur pour vos enfants, en toute confiance", icon: "👶", color: "#f59e0b", order: 6 },
+    { name: "Spring", slug: "spring", description: "Compléments alimentaires et bien-être par Spring", icon: "🌱", color: "#22c55e", order: 0 },
+    { name: "Cheef", slug: "cheef", description: "Programmes minceur et rééquilibrage alimentaire Cheef", icon: "🥗", color: "#ef4444", order: 1 },
+    { name: "Brigade de Véro", slug: "brigade-de-vero", description: "Cuisine saine et gourmande avec la Brigade de Véro", icon: "👩‍🍳", color: "#f97316", order: 2 },
+    { name: "Costockage", slug: "costockage", description: "Solutions de stockage et déstockage malin", icon: "📦", color: "#3b82f6", order: 3 },
+    { name: "Ecomatelas", slug: "ecomatelas", description: "Matelas écologiques et sommeil responsable", icon: "🛏️", color: "#8b5cf6", order: 4 },
+    { name: "Les Commis", slug: "les-commis", description: "Kits repas et paniers recettes livrés chez vous", icon: "🍽️", color: "#ec4899", order: 5 },
+    { name: "Nutripure", slug: "nutripure", description: "Compléments alimentaires naturels et transparents", icon: "💊", color: "#10b981", order: 6 },
+    { name: "Aasgard", slug: "aasgard", description: "Poêles et cheminées design pour votre intérieur", icon: "🔥", color: "#b45309", order: 7 },
+    { name: "Fizimed", slug: "fizimed", description: "Solutions de santé connectée et rééducation périnéale", icon: "💚", color: "#06b6d4", order: 8 },
+    { name: "Insentials", slug: "insentials", description: "Soins et compléments beauté essentiels", icon: "✨", color: "#d946ef", order: 9 },
   ];
 
   for (const cat of categories) {
@@ -61,14 +87,36 @@ async function main() {
   }
 
   const cat = {
-    regime: (await prisma.category.findUnique({ where: { slug: "regime" } }))!,
-    consommation: (await prisma.category.findUnique({ where: { slug: "consommation" } }))!,
-    alimentation: (await prisma.category.findUnique({ where: { slug: "alimentation" } }))!,
-    sante: (await prisma.category.findUnique({ where: { slug: "sante" } }))!,
-    maison: (await prisma.category.findUnique({ where: { slug: "maison" } }))!,
-    beaute: (await prisma.category.findUnique({ where: { slug: "beaute" } }))!,
-    enfant: (await prisma.category.findUnique({ where: { slug: "enfant" } }))!,
+    spring: (await prisma.category.findUnique({ where: { slug: "spring" } }))!,
+    cheef: (await prisma.category.findUnique({ where: { slug: "cheef" } }))!,
+    brigadedevero: (await prisma.category.findUnique({ where: { slug: "brigade-de-vero" } }))!,
+    costockage: (await prisma.category.findUnique({ where: { slug: "costockage" } }))!,
+    ecomatelas: (await prisma.category.findUnique({ where: { slug: "ecomatelas" } }))!,
+    lescommis: (await prisma.category.findUnique({ where: { slug: "les-commis" } }))!,
+    nutripure: (await prisma.category.findUnique({ where: { slug: "nutripure" } }))!,
+    aasgard: (await prisma.category.findUnique({ where: { slug: "aasgard" } }))!,
+    fizimed: (await prisma.category.findUnique({ where: { slug: "fizimed" } }))!,
+    insentials: (await prisma.category.findUnique({ where: { slug: "insentials" } }))!,
   };
+
+  // Create client accounts linked to their brand
+  for (const client of clientsToCreate) {
+    const brandCat = await prisma.category.findUnique({ where: { slug: client.brand } });
+    if (brandCat) {
+      await prisma.author.upsert({
+        where: { email: client.email },
+        update: { brandId: brandCat.id },
+        create: {
+          name: client.name,
+          email: client.email,
+          password: hashSync("client123", 10),
+          role: "client",
+          brandId: brandCat.id,
+          bio: `Compte client ${client.name}`,
+        },
+      });
+    }
+  }
 
   // All articles imported from dailymieux.fr
   const articles = [
@@ -82,7 +130,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.enfant.id,
+      categoryId: cat.spring.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-12-18"),
@@ -108,7 +156,7 @@ async function main() {
       type: "listicle",
       status: "published",
       featured: false,
-      categoryId: cat.enfant.id,
+      categoryId: cat.spring.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1566004100631-35d015d6a491?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-01-05"),
@@ -142,7 +190,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.enfant.id,
+      categoryId: cat.spring.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-02-02"),
@@ -172,7 +220,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.sante.id,
+      categoryId: cat.fizimed.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-01-22"),
@@ -203,7 +251,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: true,
-      categoryId: cat.alimentation.id,
+      categoryId: cat.cheef.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1515823064-d6e0c04616a7?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-02-18"),
@@ -232,7 +280,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.alimentation.id,
+      categoryId: cat.cheef.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-11-25"),
@@ -259,7 +307,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.alimentation.id,
+      categoryId: cat.cheef.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-10-28"),
@@ -290,7 +338,7 @@ async function main() {
       type: "comparative",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-12-05"),
@@ -334,7 +382,7 @@ async function main() {
       type: "listicle",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-01-15"),
@@ -355,7 +403,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-03-03"),
@@ -382,7 +430,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-02-08"),
@@ -408,7 +456,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-11-10"),
@@ -435,7 +483,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-10-20"),
@@ -459,7 +507,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-10-08"),
@@ -483,7 +531,7 @@ async function main() {
       type: "listicle",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-02-22"),
@@ -504,7 +552,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.consommation.id,
+      categoryId: cat.nutripure.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-03-10"),
@@ -533,7 +581,7 @@ async function main() {
       type: "review",
       status: "published",
       featured: true,
-      categoryId: cat.maison.id,
+      categoryId: cat.ecomatelas.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1604335399105-a0c585fd81a1?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-01-28"),
@@ -566,7 +614,7 @@ async function main() {
       type: "guide",
       status: "published",
       featured: false,
-      categoryId: cat.maison.id,
+      categoryId: cat.ecomatelas.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1610557892470-55d9e80c0eb7?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-12-12"),
@@ -594,7 +642,7 @@ async function main() {
       type: "advertorial",
       status: "published",
       featured: false,
-      categoryId: cat.maison.id,
+      categoryId: cat.ecomatelas.id,
       authorId: marc.id,
       coverImage: "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-02-15"),
@@ -625,7 +673,7 @@ async function main() {
       type: "comparative",
       status: "published",
       featured: false,
-      categoryId: cat.maison.id,
+      categoryId: cat.ecomatelas.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=1200&h=630&fit=crop",
       publishedAt: new Date("2026-03-05"),
@@ -671,7 +719,7 @@ async function main() {
       type: "advertorial",
       status: "published",
       featured: false,
-      categoryId: cat.maison.id,
+      categoryId: cat.ecomatelas.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-11-18"),
@@ -707,7 +755,7 @@ async function main() {
       type: "comparative",
       status: "published",
       featured: true,
-      categoryId: cat.regime.id,
+      categoryId: cat.cheef.id,
       authorId: elise.id,
       coverImage: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&h=630&fit=crop",
       publishedAt: new Date("2025-11-05"),

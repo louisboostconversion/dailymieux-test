@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "daily-mieux-secret-key-change-in-production"
-);
+import { JWT_SECRET } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get("admin-token")?.value;
@@ -20,6 +17,7 @@ export async function GET(request: NextRequest) {
         name: payload.name,
         email: payload.email,
         role: payload.role,
+        brandId: payload.brandId || null,
       },
     });
   } catch {
