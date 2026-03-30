@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  icon        String?
+  color       String?
+  order       Int       @default(0)
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Article {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  excerpt     String
+  content     String
+  type        String    @default("guide")
+  status      String    @default("draft")
+  coverImage  String?
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id])
+  authorId    String
+  author      Author    @relation(fields: [authorId], references: [id])
+  seoTitle    String?
+  seoDesc     String?
+  ogImage     String?
+  readTime    Int?
+  featured    Boolean   @default(false)
+  views       Int       @default(0)
+  sponsorName String?
+  sponsorLogo String?
+  sponsorUrl  String?
+  ctaLabel    String?
+  ctaUrl      String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Author {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  avatar    String?
+  bio       String?
+  password  String
+  role      String    @default("editor")
+  articles  Article[]
+  createdAt DateTime  @default(now())
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  filename  String
+  url       String
+  mimeType  String
+  size      Int
+  alt       String?
+  createdAt DateTime @default(now())
+}
+
+model Request {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String
+  message   String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
