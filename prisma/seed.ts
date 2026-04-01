@@ -786,6 +786,70 @@ async function main() {
         verdict: "Cheef l'emporte sur tous les critères. Meilleure qualité, prix plus accessible, accompagnement personnalisé et flexibilité totale. Comme J'aime souffre de prix élevés et de conditions d'engagement rigides.",
       }),
     },
+
+    // ============================================================
+    // KITS REPAS
+    // ============================================================
+    {
+      title: "Les Commis vs HelloFresh : le comparatif complet 2025",
+      slug: "les-commis-vs-hellofresh-comparatif-complet",
+      excerpt: "On a comparé Les Commis et HelloFresh sur tous les critères : qualité des ingrédients, variété des recettes, prix, flexibilité et engagement écologique. Voici notre verdict.",
+      type: "comparative",
+      status: "published",
+      featured: true,
+      categoryId: cat.lescommis.id,
+      authorId: elise.id,
+      coverImage: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=1200&h=630&fit=crop",
+      publishedAt: new Date("2025-12-10"),
+      ctaLabel: "Découvrir Les Commis",
+      ctaUrl: "https://lescommis.com/?utm_source=dailymieux.fr&utm_medium=affiliate&utm_campaign=lescommisvshellofresh",
+      content: JSON.stringify({
+        criteria: ["Qualité des ingrédients", "Variété des recettes", "Prix", "Temps de préparation", "Flexibilité", "Engagement écologique"],
+        products: [
+          {
+            name: "Les Commis",
+            image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=300&fit=crop",
+            ratings: { "Qualité des ingrédients": 5, "Variété des recettes": 4, "Prix": 4, "Temps de préparation": 5, "Flexibilité": 5, "Engagement écologique": 5 },
+            pros: [
+              "90% de produits français et 60% bio",
+              "Recettes prêtes en moins de 20 minutes",
+              "24 nouvelles recettes chaque semaine",
+              "Sans engagement, résiliation libre",
+              "Filtres allergènes (sans gluten, sans lactose, IG bas)",
+              "Livraison en vélo cargo à Paris"
+            ],
+            cons: [
+              "Moins connu que HelloFresh",
+              "Couverture livraison plus limitée"
+            ],
+            price: "À partir de 5,50€/portion",
+            badge: "Meilleur choix",
+          },
+          {
+            name: "HelloFresh",
+            image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop",
+            ratings: { "Qualité des ingrédients": 3, "Variété des recettes": 5, "Prix": 3, "Temps de préparation": 3, "Flexibilité": 4, "Engagement écologique": 3 },
+            pros: [
+              "Plus de 54 recettes par semaine",
+              "Marque internationale reconnue",
+              "Application mobile complète",
+              "Marketplace de desserts et extras",
+              "Viande 100% française"
+            ],
+            cons: [
+              "Moins de produits bio",
+              "Temps de préparation plus long (30 min en moyenne)",
+              "Emballages plastiques encore présents",
+              "Approvisionnement moins local",
+              "Promotions agressives mais prix standard élevé"
+            ],
+            price: "À partir de 5,00€/portion",
+          },
+        ],
+        winner: "Les Commis",
+        verdict: "Les Commis se démarque par la qualité supérieure de ses ingrédients (90% français, 60% bio), des recettes ultra-rapides en moins de 20 minutes et un vrai engagement écologique avec la livraison en vélo cargo. HelloFresh séduit par son immense catalogue de recettes et son app, mais reste en retrait sur la provenance des produits et l'impact environnemental. Pour ceux qui privilégient la qualité et le local, Les Commis est le choix évident.",
+      }),
+    },
   ];
 
   for (const article of articles) {
